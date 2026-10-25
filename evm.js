@@ -61,40 +61,15 @@ export async function readSafeOwners(rpc, address) {
 const CHAIN_META = {
   1: ['Ethereum', 'ETH'],
   10: ['Optimism', 'ETH'],
-  56: ['BNB Chain', 'BNB'],
-  100: ['Gnosis', 'xDAI'],
   137: ['Polygon', 'POL'],
-  146: ['Sonic', 'S'],
-  204: ['opBNB', 'BNB'],
-  250: ['Fantom', 'FTM'],
-  324: ['zkSync Era', 'ETH'],
-  1101: ['Polygon zkEVM', 'ETH'],
-  5000: ['Mantle', 'MNT'],
   8453: ['Base', 'ETH'],
   42161: ['Arbitrum', 'ETH'],
-  30: ['Rootstock', 'RBTC'],
-  288: ['Boba', 'ETH'],
-  480: ['World Chain', 'ETH'],
-  592: ['Astar', 'ASTR'],
-  999: ['HyperEVM', 'HYPE'],
-  1088: ['Metis', 'METIS'],
-  1284: ['Moonbeam', 'GLMR'],
-  1329: ['Sei', 'SEI'],
-  1868: ['Soneium', 'ETH'],
-  2020: ['Ronin', 'RON'],
-  2741: ['Abstract', 'ETH'],
-  7000: ['ZetaChain', 'ZETA'],
-  34443: ['Mode', 'ETH'],
-  33139: ['ApeChain', 'APE'],
-  42220: ['Celo', 'CELO'],
-  43114: ['Avalanche', 'AVAX'],
-  57073: ['Ink', 'ETH'],
-  80094: ['Berachain', 'BERA'],
-  7777777: ['Zora', 'ETH'],
-  59144: ['Linea', 'ETH'],
-  81457: ['Blast', 'ETH'],
-  534352: ['Scroll', 'ETH'],
+  5042: ['Arc', 'USDC'],
 };
+
+export function chainName(chainId) {
+  return (CHAIN_META[Number(chainId)] || [])[0] || '';
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -160,7 +135,13 @@ function createLimiter(concurrency, gapMs) {
   });
 }
 
-const INTERNAL_CHAINS = new Set([1, 137, 8453]);
+const INTERNAL_CHAINS = new Set([1, 137, 8453, 5042]);
+const METADATA_CHAINS = new Set([1, 10, 137, 8453, 42161]);
+
+function stampMetadata(chainId, params) {
+  if (METADATA_CHAINS.has(Number(chainId))) params.withMetadata = true;
+  return params;
+}
 
 export function isAlchemyUrl(rpcUrl) {
   try {
@@ -474,7 +455,9 @@ export function createEvm(rpcUrl) {
     if (!tx || !receipt) throw new Error('节点上找不到这笔交易，确认哈希和 RPC 是同一条链');
     if (receipt.status != null && !okStatus(receipt.status)) throw new Error('这笔交易失败了，没有资金转出');
     const chainId = int(chainHex);
-    const [chainName, nativeSymbol] = CHAIN_META[chainId] || [`chain ${chainId}`, 'NATIVE'];
+    const meta = CHAIN_META[chainId];
+    if (!meta) throw new Error('这条链没有 Alchemy 转账接口');
+    const [chainName, nativeSymbol] = meta;
     const header = await rpcCall('eth_getBlockByNumber', [receipt.blockNumber, false], signal);
     const timestamp = header?.timestamp ? int(header.timestamp) : null;
     const block = int(receipt.blockNumber);
@@ -565,13 +548,13 @@ export function createEvm(rpcUrl) {
           toBlock: hex(toBlock),
           category: categories,
           excludeZeroValue: true,
-          withMetadata: true,
           order: 'asc',
           maxCount: '0x3e8',
           [direction]: address,
         };
         if (token) params.contractAddresses = [token];
         if (pageKey) params.pageKey = pageKey;
+        stampMetadata(chainId, params);
         const result = await rpcCall('alchemy_getAssetTransfers', [params], signal);
         const rows = result?.transfers || [];
         for (const row of rows) {
@@ -609,6 +592,8 @@ export function createEvm(rpcUrl) {
   }
 
   async function scan({ address, asset, fromBlock, toBlock, chainId, signal, onChunk, onProgress }) {
+    const id = Number(chainId);
+    if (Number.isInteger(id) && id > 0 && !CHAIN_META[id]) throw new Error('这条链没有 Alchemy 转账接口');
     if (isAlchemyUrl(rpcUrl) && transfersApi !== false) {
       try {
         await scanAlchemy({ address, asset, fromBlock, toBlock, chainId, signal, onChunk, onProgress });
@@ -758,12 +743,12 @@ export function createEvm(rpcUrl) {
         toAddress: recipient,
         category: categories,
         excludeZeroValue: true,
-        withMetadata: true,
         order: 'desc',
         maxCount: '0x3e8',
       };
       if (token) params.contractAddresses = [token];
       if (pageKey) params.pageKey = pageKey;
+      stampMetadata(chainId, params);
       const result = await rpcCall('alchemy_getAssetTransfers', [params], signal);
       for (const row of result?.transfers || []) {
         if (token && (row.rawContract?.address || '').toLowerCase() !== token) continue;
@@ -801,12 +786,12 @@ export function createEvm(rpcUrl) {
           [field]: me,
           category: categories,
           excludeZeroValue: true,
-          withMetadata: true,
           order: 'desc',
           maxCount: '0x3e8',
         };
         if (token) params.contractAddresses = [token];
         if (pageKey) params.pageKey = pageKey;
+        stampMetadata(chainId, params);
         const result = await rpcCall('alchemy_getAssetTransfers', [params], signal);
         for (const row of result?.transfers || []) {
           if (token && (row.rawContract?.address || '').toLowerCase() !== token) continue;

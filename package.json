@@ -1,15 +1,27 @@
 {
-  "name": "tx-tracer",
+  "name": "tx-tracer-backend",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "description": "从一笔转账出发，顺着资金往后查的本机 API",
+  "description": "从一笔转账出发，顺着资金往后查，并写出 CSV",
   "bin": {
     "tx-tracer": "./bin/tx-tracer.js"
   },
+  "files": [
+    "bin",
+    "server.js",
+    "engine.js",
+    "evm.js",
+    "solana.js",
+    "labels.js",
+    "logic.js",
+    "csv.js",
+    "graph.js",
+    "network.js",
+    "README.md"
+  ],
   "scripts": {
     "start": "node bin/tx-tracer.js serve",
-    "test": "node --test engine.test.js solana.test.js labels.test.js"
+    "test": "node --test engine.test.js solana.test.js labels.test.js trace-name.test.js graph.test.js network.test.js"
   },
   "engines": {
     "node": ">=18"

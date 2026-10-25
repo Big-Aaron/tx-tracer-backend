@@ -413,3 +413,25 @@ export function csvToGraph(text) {
   for (const edge of edges) if (!edge.symbol) edge.symbol = symbol;
   return { meta, nodes: laid.nodes, edges };
 }
+
+function addressTag(address) {
+  const text = String(address || '').trim();
+  if (/^0x[0-9a-fA-F]{8,}$/.test(text)) return `0x${text.slice(2, 6).toLowerCase()}...${text.slice(-4).toLowerCase()}`;
+  if (text.length >= 8) return `${text.slice(0, 4)}...${text.slice(-4)}`;
+  return text || 'addr';
+}
+
+function hashTag(hash) {
+  const text = String(hash || '').trim();
+  if (/^0x[0-9a-fA-F]{8,}$/i.test(text)) return `0x${text.slice(2, 10).toLowerCase()}...`;
+  // ponytail: Solana signatures are base58, so the file name uses the first 8 characters.
+  const head = text.slice(0, 8);
+  return head ? `${head}...` : 'tx';
+}
+
+export function traceCsvName(graph, now = Date.now()) {
+  const meta = graph?.meta || {};
+  const symbol = String(meta.asset?.symbol || '').trim().replace(/[^\w.-]+/g, '') || 'token';
+  const stamp = Math.floor(Number(now) / 1000);
+  return `trace-${addressTag(meta.root)}-${symbol}-${hashTag(meta.txHash)}-${stamp}.csv`;
+}

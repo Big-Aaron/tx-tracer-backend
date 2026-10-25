@@ -1,0 +1,17 @@
+{
+  "name": "tx-tracer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "从一笔转账出发，顺着资金往后查的本机 API",
+  "bin": {
+    "tx-tracer": "./bin/tx-tracer.js"
+  },
+  "scripts": {
+    "start": "node bin/tx-tracer.js serve",
+    "test": "node --test engine.test.js solana.test.js labels.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
